@@ -1,0 +1,139 @@
+---
+- hosts: localhost 
+  gather_facts: false
+  name: Configure ONTAP Select 
+  vars:
+    https: true
+    validate_certs: false
+    site_node_name: "{{ site_cluster }}-01"
+    site_svm_name: "{{ site_name }}1svm"
+    site_aggr_name: "aggr1"
+    site_data_vol: "IoT_Data"
+    site_login: &site_login
+      hostname: '{{ site_address }}'
+      username: admin
+      password: '{{ site_password }}'  
+      https: true
+      validate_certs: no 
+  vars_files: 
+    site-vars.yml
+  tasks:
+  - name: Create SVM
+    na_ontap_svm:
+      <<: *site_login
+      state: present
+      name: "{{ site_svm_name }}"
+      root_volume: "{{ site_svm_name }}_root"
+      root_volume_aggregate: "{{ site_aggr_name }}"
+      root_volume_security_style: unix
+  - name: Create interface
+    na_ontap_interface:
+      <<: *site_login
+      state: present
+      interface_name: "{{ site_svm_name }}_lif1"
+      home_port: e0a
+      home_node: "{{ site_node_name }}"
+      role: data
+      protocols: nfs,cifs
+      admin_status: up
+      failover_policy: local-only
+      firewall_policy: mgmt-nfs
+      is_auto_revert: true
+      address: "{{ site_svm_address }}"
+      netmask: "{{ site_netmask }}"
+      vserver: "{{ site_svm_name }}"
+  - name: create route
+    na_ontap_net_routes:
+      <<: *site_login
+      state: present
+      vserver: "{{ site_svm_name }}"
+      destination: 0.0.0.0/0
+      gateway: "{{ site_gateway }}"
+      metric: "20"
+  - name: Enable nfs 
+    na_ontap_nfs:
+      <<: *site_login
+      state: present
+      service_state: started
+      vserver: "{{ site_svm_name }}"
+      nfsv3: enabled
+      nfsv4: disabled
+      nfsv41: disabled
+      tcp: enabled
+      udp: enabled
+      vstorage_state: enabled
+  - name: Setup default rules
+    na_ontap_export_policy_rule:
+      <<: *site_login
+      state: present
+      policy_name: default
+      vserver: "{{ site_svm_name }}"
+      rule_index: 1 
+      client_match: 0.0.0.0/0
+      ro_rule: any
+      rw_rule: any
+      super_user_security: any
+  - name: create DNS
+    na_ontap_dns:
+      <<: *site_login
+      state: present
+      vserver: "{{ site_svm_name }}" 
+      domains: "{{ dns_domain }}"
+      nameservers: "{{ dns_server }}"
+      skip_validation: true 
+  - name: create DNS
+    na_ontap_dns:
+      <<: *site_login
+      state: present
+      vserver: '{{ site_cluster }}'
+      domains: "{{ dns_domain }}"
+      nameservers: "{{ dns_server }}"
+      skip_validation: true 
+  - name: Create Site Volume 
+    na_ontap_volume: 
+      <<: *site_login
+      state: present 
+      name: "{{ site_data_vol }}"
+      aggregate_name: "{{ site_aggr_name }}" 
+      size: "40" 
+      size_unit: gb 
+      space_guarantee: none
+      volume_security_style: unix
+      junction_path: "/{{ site_data_vol }}"
+      vserver: "{{ site_svm_name }}"
+
+# Create intercluster lif
+
+# create cluster peer relationship
+
+# create svm peer relationship
+
+# create distribution cache volume
+
+# create core flexcache volume
+
+# create core snapmirror volume
+
+# set junction paths
+
+
+
+
+  # - name: Create Install Volume 
+  #   na_ontap_volume: 
+  #     state: present 
+  #     name: "{{ ontap_vol_install }}"
+  #     aggregate_name: "aggr1" 
+  #     size: "40" 
+  #     size_unit: gb 
+  #     space_guarantee: none
+  #     volume_security_style: unix
+  #     junction_path: "/{{ ontap_vol_install }}"
+  #     vserver: "{{ ontap_svm_name }}"
+  #     hostname: "{{ ontap_address }}"
+  #     username: admin
+  #     password: "{{ lab_password }}"
+  #     https: true
+  #     validate_certs: false  
+
+
