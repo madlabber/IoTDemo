@@ -15,8 +15,15 @@
       password: '{{ site_password }}'  
       https: true
       validate_certs: no 
+    core_login: &core_login
+      hostname: '{{ core_address }}'
+      username: admin
+      password: '{{ core_password }}'  
+      https: true
+      validate_certs: no 
   vars_files: 
-    site-vars.yml
+    - vars-site.yml
+    - vars-core.yml
   tasks:
   - name: Create SVM
     na_ontap_svm:
@@ -78,16 +85,16 @@
       <<: *site_login
       state: present
       vserver: "{{ site_svm_name }}" 
-      domains: "{{ dns_domain }}"
-      nameservers: "{{ dns_server }}"
+      domains: "{{ site_dns_domain }}"
+      nameservers: "{{ site_dns_server }}"
       skip_validation: true 
   - name: create DNS
     na_ontap_dns:
       <<: *site_login
       state: present
       vserver: '{{ site_cluster }}'
-      domains: "{{ dns_domain }}"
-      nameservers: "{{ dns_server }}"
+      domains: "{{ site_dns_domain }}"
+      nameservers: "{{ site_dns_server }}"
       skip_validation: true 
   - name: Create Site Volume 
     na_ontap_volume: 
@@ -101,8 +108,29 @@
       volume_security_style: unix
       junction_path: "/{{ site_data_vol }}"
       vserver: "{{ site_svm_name }}"
-
-# Create intercluster lif
+  - name: Create intercluster interface
+    na_ontap_interface:
+      <<: *site_login
+      state: present
+      interface_name: "{{ site_node_name }}_ic1"
+      home_port: e0a
+      home_node: "{{ site_node_name }}"
+      role: intercluster
+      admin_status: up
+      failover_policy: local-only
+      firewall_policy: intercluster
+      is_auto_revert: true
+      address: "{{ site_ic1_address }}"
+      netmask: "{{ site_netmask }}"
+      vserver: "{{ site_cluster }}"
+  - name: Create cluster route
+    na_ontap_net_routes:
+      <<: *site_login
+      state: present
+      vserver: "{{ site_cluster }}"
+      destination: 0.0.0.0/0
+      gateway: "{{ site_gateway }}"
+      metric: "20"
 
 # create cluster peer relationship
 
