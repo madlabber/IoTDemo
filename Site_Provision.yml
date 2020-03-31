@@ -6,7 +6,6 @@
     https: true
     validate_certs: false
     site_node_name: "{{ site_cluster }}-01"
-    site_svm_name: "{{ site_name }}1svm"
     site_aggr_name: "aggr1"
     site_data_vol: "IoT_Data"
     site_login: &site_login
@@ -15,6 +14,7 @@
       password: '{{ site_password }}'  
       https: true
       validate_certs: no 
+    core_aggr_name: "aggr2"
     core_login: &core_login
       hostname: '{{ core_address }}'
       username: admin
@@ -25,6 +25,15 @@
     - vars-site.yml
     - vars-core.yml
   tasks:
+  - name: Create Data Aggregate 
+    na_ontap_aggregate:
+      <<: *site_login
+      state: present
+      service_state: online
+      name: aggr1
+      disk_count: 1
+      wait_for_online: True
+      time_out: 300
   - name: Create SVM
     na_ontap_svm:
       <<: *site_login
@@ -88,14 +97,6 @@
       domains: "{{ site_dns_domain }}"
       nameservers: "{{ site_dns_server }}"
       skip_validation: true 
-  - name: create DNS
-    na_ontap_dns:
-      <<: *site_login
-      state: present
-      vserver: '{{ site_cluster }}'
-      domains: "{{ site_dns_domain }}"
-      nameservers: "{{ site_dns_server }}"
-      skip_validation: true 
   - name: Create Site Volume 
     na_ontap_volume: 
       <<: *site_login
@@ -123,45 +124,78 @@
       address: "{{ site_ic1_address }}"
       netmask: "{{ site_netmask }}"
       vserver: "{{ site_cluster }}"
-  - name: Create cluster route
-    na_ontap_net_routes:
+  - name: Create cluster peer
+    na_ontap_cluster_peer:
       <<: *site_login
       state: present
-      vserver: "{{ site_cluster }}"
-      destination: 0.0.0.0/0
-      gateway: "{{ site_gateway }}"
-      metric: "20"
-
-# create cluster peer relationship
-
-# create svm peer relationship
-
-# create distribution cache volume
-
-# create core flexcache volume
-
-# create core snapmirror volume
-
-# set junction paths
-
-
-
-
-  # - name: Create Install Volume 
-  #   na_ontap_volume: 
-  #     state: present 
-  #     name: "{{ ontap_vol_install }}"
-  #     aggregate_name: "aggr1" 
-  #     size: "40" 
-  #     size_unit: gb 
-  #     space_guarantee: none
-  #     volume_security_style: unix
-  #     junction_path: "/{{ ontap_vol_install }}"
-  #     vserver: "{{ ontap_svm_name }}"
-  #     hostname: "{{ ontap_address }}"
-  #     username: admin
-  #     password: "{{ lab_password }}"
-  #     https: true
-  #     validate_certs: false  
-
+      source_intercluster_lifs: "{{ site_ic1_address }}"
+      dest_intercluster_lifs: "{{ core_ic1_address }}"
+      passphrase: "{{ site_password }}"
+      dest_hostname: "{{ core_address }}"
+  - name: Source vserver peer create
+    na_ontap_vserver_peer:
+      <<: *site_login
+      state: present
+      peer_vserver: "{{ core_svm }}"
+      peer_cluster: "{{ core_cluster }}"
+      vserver: "{{ site_svm_name }}"
+      applications: snapmirror,flexcache
+      dest_hostname: "{{ core_address }}"
+  - name: Create FlexCache Distribution_cache
+    na_ontap_flexcache:
+      <<: *site_login
+      state: present
+      origin_volume: "Distribution"
+      volume: "Distribution_cache"
+      origin_vserver: "{{ core_svm }}"
+      vserver: "{{ site_svm_name }}"
+      junction_path: "/Distribution_cache"
+  - name: Create FlexCache Site_cache
+    na_ontap_flexcache:
+      <<: *core_login
+      state: present
+      origin_volume: "IoT_Data"
+      volume: "{{ site_name }}_cache"
+      origin_vserver: "{{ site_svm_name }}"
+      vserver: "{{ core_svm }}"
+      junction_path: "/Sites_cache/{{ site_name }}"
+  - name: Create Snapmirror Volume 
+    na_ontap_volume: 
+      <<: *core_login
+      state: present 
+      name: "{{ site_name }}_mirror"
+      aggregate_name: "{{ core_aggr_name }}" 
+      type: "DP"
+      size: "40" 
+      size_unit: gb 
+      space_guarantee: none
+      volume_security_style: unix
+      vserver: "{{ core_svm }}"
+  - name: Create ONTAP/ONTAP SnapMirror
+    na_ontap_snapmirror:
+      <<: *core_login
+      state: present
+      source_volume: "IoT_Data"
+      destination_volume: "{{ site_name }}_mirror"
+      source_vserver: "{{ site_svm_name }}"
+      destination_vserver: "{{ core_svm }}"
+      schedule: hourly
+      policy: MirrorAllSnapshots
+  - name: Mount Snapmirror Volume 
+    na_ontap_volume: 
+      <<: *core_login
+      state: present 
+      name: "{{ site_name }}_mirror"
+      aggregate_name: "{{ core_aggr_name }}" 
+      type: "DP"
+      size: "40" 
+      size_unit: gb 
+      space_guarantee: none
+      volume_security_style: unix
+      junction_path: "/Sites_copy/{{ site_name }}"
+      vserver: "{{ core_svm }}"
+    retries: 30
+    delay: 60
+    register: result           
+    until: result is succeeded 
 

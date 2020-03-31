@@ -1,0 +1,100 @@
+---
+- hosts: localhost 
+  gather_facts: false
+  name: Configure ONTAP Select 
+  vars:
+    https: true
+    validate_certs: false
+    site_node_name: "{{ site_cluster }}-01"
+    site_aggr_name: "aggr1"
+    site_data_vol: "IoT_Data"
+    site_login: &site_login
+      hostname: '{{ site_address }}'
+      username: admin
+      password: '{{ site_password }}'  
+      https: true
+      validate_certs: no 
+    core_aggr_name: "aggr2"
+    core_login: &core_login
+      hostname: '{{ core_address }}'
+      username: admin
+      password: '{{ core_password }}'  
+      https: true
+      validate_certs: no 
+  vars_files: 
+    - vars-site.yml
+    - vars-core.yml
+  tasks:
+  - name: Unmount Snapmirror Volume 
+    na_ontap_volume: 
+      <<: *core_login
+      state: present 
+      name: "{{ site_name }}_mirror"
+      aggregate_name: "{{ core_aggr_name }}" 
+      type: "DP"
+      size: "40" 
+      size_unit: gb 
+      space_guarantee: none
+      volume_security_style: unix
+      junction_path: ""
+      vserver: "{{ core_svm }}"
+  - name: Delete SnapMirror relationship
+    na_ontap_snapmirror:
+      <<: *core_login
+      state: absent
+      destination_path: "{{ core_svm }}:{{ site_name }}_mirror"
+      source_hostname: "{{ site_address }}"
+  - name: Delete Snapmirror Volume 
+    na_ontap_volume: 
+      <<: *core_login
+      state: absent 
+      name: "{{ site_name }}_mirror"
+      vserver: "{{ core_svm }}"
+  - name: Delete FlexCache Site_cache
+    na_ontap_flexcache:
+      <<: *core_login
+      state: absent
+      volume: "{{ site_name }}_cache"
+      vserver: "{{ core_svm }}"
+      force_offline: yes
+      force_unmount: yes
+  - name: Delete FlexCache Distribution_cache
+    na_ontap_flexcache:
+      <<: *site_login
+      state: absent
+      volume: "Distribution_cache"
+      vserver: "{{ site_svm_name }}"
+      force_offline: yes
+      force_unmount: yes
+  - name: Remove vserver peering relationship
+    na_ontap_vserver_peer:
+      <<: *site_login
+      state: absent
+      peer_vserver: "{{ core_svm }}"
+      peer_cluster: "{{ core_cluster }}"
+      vserver: "{{ site_svm_name }}"
+      dest_hostname: "{{ core_address }}"
+  - name: Remove cluster peering relationship
+    na_ontap_cluster_peer:
+      <<: *site_login
+      state: absent
+      source_cluster_name: "{{ site_cluster }}"
+      dest_cluster_name: "{{ core_cluster }}"
+      dest_hostname: "{{ core_address }}"
+  - name: Remove intercluster interface
+    na_ontap_interface:
+      <<: *site_login
+      state: absent
+      interface_name: "{{ site_node_name }}_ic1"
+      vserver: "{{ site_cluster }}"
+  - name: Remove Site Volume 
+    na_ontap_volume: 
+      <<: *site_login
+      state: absent 
+      name: "{{ site_data_vol }}"
+      vserver: "{{ site_svm_name }}"
+  - name: Remove SVM
+    na_ontap_svm:
+      <<: *site_login
+      state: absent
+      name: "{{ site_svm_name }}"
