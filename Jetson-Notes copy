@@ -1,0 +1,38 @@
+
+Flash base image
+
+Initial setup
+-ip address
+sudo nmcli con mod "Wired connection 1" ipv4.addresses "192.168.223.52/24"
+sudo nmcli con mod "Wired connection 1" ipv4.gateway "192.168.223.1"
+sudo nmcli con mod "Wired connection 1" ipv4.method manual
+sudo nmcli con mod "Wired connection 1" ipv4.dns "192.168.223.21"
+sudo nmcli con up "Wired connection 1"
+
+fix Vino
+-shipping xml config is broken.  need to automate a fix.
+export DISPLAY=:0
+gsettings set org.gnome.Vino prompt-enabled false
+gsettings set org.gnome.Vino require-encryption false
+gsettings set org.gnome.Vino authentication-methods "['vnc']"
+gsettings set org.gnome.Vino vnc-password $(echo -n 'P@ssw0rd'|base64)
+gsettings set org.gnome.desktop.session idle-delay 0
+gsettings get org.gnome.desktop.session idle-delay
+/usr/lib/vino/vino-server &
+
+make it a service?
+https://askubuntu.com/questions/636270/vino-vnc-server-unable-to-start-on-startup
+
+Configure mount points
+-autofs?
+
+install pre-requisites
+-need to include fix for broken library
+
+install doorcam
+-this code actually works
+
+configure autostart settings
+-must find non-gui way
+
+
