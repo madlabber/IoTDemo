@@ -1,38 +1,98 @@
 
 Flash base image
+-jamf broke etcher
 
-Initial setup
--ip address
+Initial setup:
+==============
+create user administrator
+enable autologon
+or edit /etc/gdm3/custom.conf:
+[daemon]
+AutomaticLoginEnable=true
+AutomaticLogin=administrator
+
+
+Set static ip address:
+======================
 sudo nmcli con mod "Wired connection 1" ipv4.addresses "192.168.223.52/24"
 sudo nmcli con mod "Wired connection 1" ipv4.gateway "192.168.223.1"
 sudo nmcli con mod "Wired connection 1" ipv4.method manual
 sudo nmcli con mod "Wired connection 1" ipv4.dns "192.168.223.21"
 sudo nmcli con up "Wired connection 1"
 
-fix Vino
--shipping xml config is broken.  need to automate a fix.
+Fix Vino:
+=========
 export DISPLAY=:0
 gsettings set org.gnome.Vino prompt-enabled false
 gsettings set org.gnome.Vino require-encryption false
 gsettings set org.gnome.Vino authentication-methods "['vnc']"
 gsettings set org.gnome.Vino vnc-password $(echo -n 'P@ssw0rd'|base64)
 gsettings set org.gnome.desktop.session idle-delay 0
-gsettings get org.gnome.desktop.session idle-delay
+gsettings set org.gnome.desktop.interface enable-animations false
 /usr/lib/vino/vino-server &
 
-make it a service?
-https://askubuntu.com/questions/636270/vino-vnc-server-unable-to-start-on-startup
+Add Vino to startup:
+====================
+mkdir -p ~/.config/autostart
+~/.config/autostart/vino-server.desktop
+[Desktop Entry]
+Type=Application
+Name=Vino VNC server
+Exec=/usr/lib/vino/vino-server &
+NoDisplay=false
 
-Configure mount points
+Hidden=false
+X-GNOME-Autostart-enabled=true
+Name[en_US]=Vino-Server
+Comment[en_US]=
+Comment=
+
+to fix the control panel widget, follow this post:
+https://medium.com/@gabriel.giani/tips-and-tricks-no-1-jetson-nano-remote-access-vnc-8b606fa125f8
+
+Configure mount points:
+=======================
 -autofs?
+sudo apt-get updatte
+sudo apt-get install autofs
+sudo mkdir /mnt
+append to /etc/auto.master:
+/mnt	/etc/auto.mnt
 
-install pre-requisites
--need to include fix for broken library
+create /etc/auto.mnt:
+iot_data 	-fstype=nfs,rw,vers=3	192.168.223.163:/IoT_Data
+distribution_cache        -fstype=nfs,rw,vers=3   192.168.223.163:/Distribution_cache
 
-install doorcam
--this code actually works
+sudo service autofs reload
 
-configure autostart settings
--must find non-gui way
+Install pre-requisites
+======================
+-fix for broken library: fixed in cudnn 7.6.1.  current jetpack has 7.6.3
+sudo apt-get install python3-pip cmake libopenblas-dev liblapack-dev libjpeg-dev
+sudo apt-get install libcanberra-gtk-module
+pip3 install cython
+pip3 install numpy
+pip3 install dlib
+sudo pip3 install face_recognition
+
+Install doorcam demo
+====================
+cd /mnt/distribution_cache
+cd doorcam
+./start.sh
+
+Configure autostart:
+====================
+cat /home/administrator/.config/autostart/start.sh.desktop
+[Desktop Entry]
+Type=Application
+Exec=/home/administrator/doorcam/start.sh
+Hidden=false
+NoDisplay=false
+X-GNOME-Autostart-enabled=true
+Name[en_US]=doorcam
+Name=doorcam
+Comment[en_US]=doorcam autostart
+Comment=doorcam autostart
 
 
