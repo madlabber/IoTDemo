@@ -18,10 +18,14 @@ from os.path import getmtime
 # Our list of known face encodings and a matching list of metadata about each face.
 known_face_encodings = []
 known_face_metadata = []
+
+# Data path, including a subfolder for each camera's hostname
 hostname = socket.gethostname()
 data_path = "/mnt/iot_data/"+hostname+"/"
 distribution_path = "/mnt/distribution_cache/doorcam/"
 os.makedirs(data_path, exist_ok=True)
+
+# Watched files for the auto update process
 GLOBAL_FILE_PATH = distribution_path+"doorbell_camera.py"
 GLOBAL_START_PATH = distribution_path+"start.sh"
 WATCHED_FILES = [distribution_path+"doorbell_camera.py", distribution_path+"start.sh"]

@@ -1,7 +1,7 @@
 ---
 - hosts: localhost 
   gather_facts: false
-  name: Configure ONTAP Select 
+  name: Decomission Site 
   vars:
     https: true
     validate_certs: false
@@ -39,19 +39,19 @@
       volume_security_style: unix
       junction_path: ""
       vserver: "{{ core_svm }}"
-  - name: Delete SnapMirror relationship
+  - name: Remove SnapMirror relationship
     na_ontap_snapmirror:
       <<: *core_login
       state: absent
       destination_path: "{{ core_svm }}:{{ site_name }}_mirror"
       source_hostname: "{{ site_address }}"
-  - name: Delete Snapmirror Volume 
+  - name: Remove Snapmirror Volume 
     na_ontap_volume: 
       <<: *core_login
       state: absent 
       name: "{{ site_name }}_mirror"
       vserver: "{{ core_svm }}"
-  - name: Delete FlexCache Site_cache
+  - name: Remove FlexCache Site_cache
     na_ontap_flexcache:
       <<: *core_login
       state: absent
@@ -59,7 +59,7 @@
       vserver: "{{ core_svm }}"
       force_offline: yes
       force_unmount: yes
-  - name: Delete FlexCache Distribution_cache
+  - name: Remove FlexCache Distribution_cache
     na_ontap_flexcache:
       <<: *site_login
       state: absent
@@ -67,6 +67,7 @@
       vserver: "{{ site_svm_name }}"
       force_offline: yes
       force_unmount: yes
+    ignore_errors: yes
   - name: Remove vserver peering relationship
     na_ontap_vserver_peer:
       <<: *site_login
@@ -94,6 +95,7 @@
       state: absent 
       name: "{{ site_data_vol }}"
       vserver: "{{ site_svm_name }}"
+    ignore_errors: yes
   - name: Remove SVM
     na_ontap_svm:
       <<: *site_login
