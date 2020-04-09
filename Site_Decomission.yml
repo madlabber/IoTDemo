@@ -6,6 +6,7 @@
     https: true
     validate_certs: false
     site_node_name: "{{ site_cluster }}-01"
+    site_svm_name: "svm1{{ site_name }}"
     site_aggr_name: "aggr1"
     site_data_vol: "IoT_Data"
     site_login: &site_login

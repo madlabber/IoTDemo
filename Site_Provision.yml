@@ -1,11 +1,12 @@
 ---
 - hosts: localhost 
   gather_facts: false
-  name: Configure ONTAP Select 
+  name: Provision Site 
   vars:
     https: true
     validate_certs: false
     site_node_name: "{{ site_cluster }}-01"
+    site_svm_name: "svm1{{ site_name }}"
     site_aggr_name: "aggr1"
     site_data_vol: "IoT_Data"
     site_login: &site_login
@@ -21,6 +22,11 @@
       password: '{{ core_password }}'  
       https: true
       validate_certs: no 
+    retry_settings: &retry_settings
+      retries: 6
+      delay: 10 
+      register: result           
+      until: result is succeeded    
   vars_files: 
     - vars-site.yml
     - vars-core.yml
@@ -33,7 +39,8 @@
       name: aggr1
       disk_count: 1
       wait_for_online: True
-      time_out: 300
+      time_out: 100
+    <<: *retry_settings
   - name: Create SVM
     na_ontap_svm:
       <<: *site_login
@@ -42,6 +49,7 @@
       root_volume: "{{ site_svm_name }}_root"
       root_volume_aggregate: "{{ site_aggr_name }}"
       root_volume_security_style: unix
+    <<: *retry_settings
   - name: Create interface
     na_ontap_interface:
       <<: *site_login
@@ -58,6 +66,7 @@
       address: "{{ site_svm_address }}"
       netmask: "{{ site_netmask }}"
       vserver: "{{ site_svm_name }}"
+    <<: *retry_settings
   - name: create route
     na_ontap_net_routes:
       <<: *site_login
@@ -66,6 +75,7 @@
       destination: 0.0.0.0/0
       gateway: "{{ site_gateway }}"
       metric: "20"
+    <<: *retry_settings
   - name: Enable nfs 
     na_ontap_nfs:
       <<: *site_login
@@ -78,6 +88,7 @@
       tcp: enabled
       udp: enabled
       vstorage_state: enabled
+    <<: *retry_settings
   - name: Setup default rules
     na_ontap_export_policy_rule:
       <<: *site_login
@@ -89,6 +100,7 @@
       ro_rule: any
       rw_rule: any
       super_user_security: any
+    <<: *retry_settings
   - name: create DNS
     na_ontap_dns:
       <<: *site_login
@@ -97,6 +109,7 @@
       domains: "{{ site_dns_domain }}"
       nameservers: "{{ site_dns_server }}"
       skip_validation: true 
+    <<: *retry_settings
   - name: Create Site Volume 
     na_ontap_volume: 
       <<: *site_login
@@ -109,6 +122,7 @@
       volume_security_style: unix
       junction_path: "/{{ site_data_vol }}"
       vserver: "{{ site_svm_name }}"
+    <<: *retry_settings
   - name: Create intercluster interface
     na_ontap_interface:
       <<: *site_login
@@ -124,6 +138,7 @@
       address: "{{ site_ic1_address }}"
       netmask: "{{ site_netmask }}"
       vserver: "{{ site_cluster }}"
+    <<: *retry_settings
   - name: Create cluster peer
     na_ontap_cluster_peer:
       <<: *site_login
@@ -132,6 +147,7 @@
       dest_intercluster_lifs: "{{ core_ic1_address }}"
       passphrase: "{{ site_password }}"
       dest_hostname: "{{ core_address }}"
+    <<: *retry_settings
   - name: Source vserver peer create
     na_ontap_vserver_peer:
       <<: *site_login
@@ -140,7 +156,8 @@
       peer_cluster: "{{ core_cluster }}"
       vserver: "{{ site_svm_name }}"
       applications: snapmirror,flexcache
-      dest_hostname: "{{ core_address }}"
+      dest_hostname: "{{ core_address }}"    
+    <<: *retry_settings
   - name: Create FlexCache Distribution_cache
     na_ontap_flexcache:
       <<: *site_login
@@ -150,6 +167,7 @@
       origin_vserver: "{{ core_svm }}"
       vserver: "{{ site_svm_name }}"
       junction_path: "/Distribution_cache"
+    <<: *retry_settings
   - name: Create FlexCache Site_cache
     na_ontap_flexcache:
       <<: *core_login
@@ -159,6 +177,7 @@
       origin_vserver: "{{ site_svm_name }}"
       vserver: "{{ core_svm }}"
       junction_path: "/Sites_cache/{{ site_name }}"
+    <<: *retry_settings
   - name: Create Snapmirror Volume 
     na_ontap_volume: 
       <<: *core_login
@@ -171,6 +190,7 @@
       space_guarantee: none
       volume_security_style: unix
       vserver: "{{ core_svm }}"
+    <<: *retry_settings
   - name: Create ONTAP/ONTAP SnapMirror
     na_ontap_snapmirror:
       <<: *core_login
@@ -181,6 +201,7 @@
       destination_vserver: "{{ core_svm }}"
       schedule: hourly
       policy: MirrorAllSnapshots
+    <<: *retry_settings
   - name: Mount Snapmirror Volume 
     na_ontap_volume: 
       <<: *core_login
@@ -194,8 +215,5 @@
       volume_security_style: unix
       junction_path: "/Sites_copy/{{ site_name }}"
       vserver: "{{ core_svm }}"
-    retries: 30
-    delay: 60
-    register: result           
-    until: result is succeeded 
+    <<: *retry_settings
 

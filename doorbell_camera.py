@@ -1,3 +1,7 @@
+# Adapted from Jetson Nano community example code project
+# https://developer.nvidia.com/embedded/community/jetson-projects#smart_doorbell
+# https://gist.github.com/ageitgey/84943a12dd0d9f54e90f824b94e4c2a9
+
 import face_recognition
 import cv2
 from datetime import datetime, timedelta

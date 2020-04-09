@@ -1,7 +1,8 @@
-OTS 9.7 has a spuroous assert bouncing mgwd
+OTS 9.7 has an assert bouncing mgwd.
 
-set d;sudo systemshell local -p -u bootarg.vm.init.flash_optimized
+To work around, either disable the OTS flash optimizations:
+set d;sudo systemshell local kenv -p -u bootarg.vm.init.flash_optimized
 
-or
+or disable the application provisioning model cache:
 set d;application provisioning config modify -is-model-cache-maintained false -is-model-cache-used false
 

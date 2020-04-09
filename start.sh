@@ -1,4 +1,7 @@
 #!/bin/bash
+
+# This script maintains a local copy of the doorcam application
+# and starts the app
 if [ -f "/mnt/distribution_cache/doorcam/doorbell_camera.py" ]; then
 	echo "Pulling latest application code..."
 	mkdir ~/doorcam

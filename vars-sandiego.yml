@@ -1,6 +1,5 @@
 site_name: "SanDiego"
 site_cluster: "ONTAP-DEMO"
-site_svm_name: "sd1svm"
 site_password: "P@ssw0rd"
 site_address: "192.168.223.160"
 site_ic1_address: "192.168.223.162"
