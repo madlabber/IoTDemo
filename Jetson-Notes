@@ -5,6 +5,7 @@ Flash base image
 Initial setup:
 ==============
 create user administrator
+enable passwordless sudo for administrator
 enable autologon
 or edit /etc/gdm3/custom.conf:
 [daemon]
@@ -86,7 +87,7 @@ Configure autostart:
 cat /home/administrator/.config/autostart/start.sh.desktop
 [Desktop Entry]
 Type=Application
-Exec=/home/administrator/doorcam/start.sh
+Exec=sudo /home/administrator/doorcam/start.sh
 Hidden=false
 NoDisplay=false
 X-GNOME-Autostart-enabled=true

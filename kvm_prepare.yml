@@ -1,0 +1,116 @@
+---
+- hosts: kvmhosts 
+  gather_facts: true
+  name: Prepare KVM hosts 
+  vars:
+    epel_repo_url: "https://dl.fedoraproject.org/pub/epel/epel-release-latest-{{ ansible_distribution_major_version }}.noarch.rpm"
+    epel_repo_gpg_key_url: "https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-{{ ansible_distribution_major_version }}"
+    epel_repofile_path: "/etc/yum.repos.d/epel.repo"
+    openvswitch_rpm: "https://cbs.centos.org/kojifiles/packages/openvswitch/2.12.0/1.el7/x86_64/openvswitch-2.12.0-1.el7.x86_64.rpm"
+    ipaddr: "192.168.223.57"
+    prefix: "24"
+    gateway: "192.168.223.1"
+    dns1: "192.168.223.21"
+    virsh_pool_dev: "/dev/sdb"
+    eth_dev: "ens192"
+  tasks:
+  - name: ensure a list of packages installed
+    yum:
+      name: "{{ packages }}"
+    vars:
+      packages:
+      - qemu-kvm
+      - libvirt
+      - virt-install
+      - lshw
+      - lsscsi
+      - lsof
+      - python-lxml
+  - name: Check if EPEL repo is already configured.
+    stat: path={{ epel_repofile_path }}
+    register: epel_repofile_result
+  - name: Install EPEL repo.
+    yum:
+      name: "{{ epel_repo_url }}"
+      state: present
+    register: result
+    when: not epel_repofile_result.stat.exists 
+  - name: Import EPEL GPG key.
+    rpm_key:
+      key: "{{ epel_repo_gpg_key_url }}"
+      state: present
+    when: not epel_repofile_result.stat.exists
+  - name: ensure openvswitch package is installed
+    yum:
+      name: "{{ openvswitch_rpm }}"
+  - name: Make sure openvswitch is running
+    systemd:
+      state: started
+      name: openvswitch
+  - name: enable service openvswitch and ensure it is not masked
+    systemd:
+      name: openvswitch
+      enabled: yes
+      masked: no
+  - name: Run command virsh pool-define-as
+    command:
+      cmd: virsh pool-define-as select_pool logical --source-dev "{{ virsh_pool_dev }}" --target=/dev/select_pool
+      creates: /etc/libvirt/storage/select_pool.xml
+  - name: Build the storage pool
+    virt_pool:
+      command: build
+      name: select_pool
+    ignore_errors: yes
+  - name: Activate the storage pool
+    virt_pool:
+      state: active
+      name: select_pool
+  - name: Auto start the storage pool
+    virt_pool:
+      autostart: yes
+      name: select_pool
+  - name: set queue length rules
+    lineinfile:
+      path: /etc/udev/rules.d/99-ontaptxqueuelen.rules
+      line: 'SUBSYSTEM=="net", ACTION=="add", KERNEL=="ontapn*", ATTR{tx_queue_len}="5000"'
+      create: yes
+  - name: Remove ovs bridge file
+    file:
+      path: /etc/sysconfig/network-scripts/ifcfg-ovs-br0
+      state: absent
+  - name: Create ovs bridge file
+    blockinfile:
+      path: /etc/sysconfig/network-scripts/ifcfg-ovs-br0
+      create: yes
+      block: |
+        TYPE="OVSBridge"
+        BOOTPROTO="static"
+        DEFROUTE="yes"
+        DEVICE="ovs-br0"
+        DEVICETYPE="ovs"
+        ONBOOT="yes"
+        IPADDR="{{ipaddr}}"
+        PREFIX="{{prefix}}"
+        GATEWAY="{{gateway}}"
+        DNS1="{{dns1}}"
+  - name: Remove ifcfg file
+    file:
+      path: "/etc/sysconfig/network-scripts/ifcfg-{{eth_dev}}"
+      state: absent
+  - name: Create ifcfg file
+    blockinfile:
+      path: "/etc/sysconfig/network-scripts/ifcfg-{{eth_dev}}"
+      create: yes
+      block: |
+        NAME="{{eth_dev}}"
+        UUID="f5db87e5-04b8-44af-b545-69f0f138cde2"
+        DEVICE="{{eth_dev}}"
+        ONBOOT="yes"
+        TYPE=OVSPort
+        DEVICETYPE=ovs
+        OVS_BRIDGE=ovs-br0
+  - name: restart networking
+    systemd:
+      state: restarted
+      daemon_reload: yes
+      name: network
