@@ -18,18 +18,18 @@ from os.path import getmtime
 # Our list of known face encodings and a matching list of metadata about each face.
 known_face_encodings = []
 known_face_metadata = []
-
-# Data path, including a subfolder for each camera's hostname
 hostname = socket.gethostname()
 data_path = "/mnt/iot_data/"+hostname+"/"
 distribution_path = "/mnt/distribution_cache/doorcam/"
 os.makedirs(data_path, exist_ok=True)
-
-# Watched files for the auto update process
 GLOBAL_FILE_PATH = distribution_path+"doorbell_camera.py"
 GLOBAL_START_PATH = distribution_path+"start.sh"
 WATCHED_FILES = [distribution_path+"doorbell_camera.py", distribution_path+"start.sh"]
 WATCHED_FILES_MTIMES = [(f, getmtime(f)) for f in WATCHED_FILES]
+# Border color BGR values
+blue=0
+red=255
+green=0
 
 
 def save_known_faces():
@@ -56,7 +56,7 @@ def running_on_jetson_nano():
     return platform.machine() == "aarch64"
 
 
-def get_jetson_gstreamer_source(capture_width=1280, capture_height=960, display_width=640, display_height=480, framerate=10, flip_method=4):
+def get_jetson_gstreamer_source(capture_width=640, capture_height=480, display_width=640, display_height=480, framerate=15, flip_method=4):
     """
     Return an OpenCV-compatible video source description that uses gstreamer to capture video from the camera on a Jetson Nano
     """
@@ -144,7 +144,7 @@ def main_loop():
     number_of_faces_since_save = 0
 
     while True:
-    	# Check for code updates
+        # Check for code updates
         for f, mtime in WATCHED_FILES_MTIMES:
             if getmtime(f) != mtime:
                 print("Update detected.")
@@ -178,8 +178,8 @@ def main_loop():
             # Grab the image of the the face from the current frame of video
             top, right, bottom, left = face_location
             face_image = small_frame[top:bottom, left:right]
-            face_image = cv2.resize(face_image, (150, 150))   
-            face_image_large = frame[top*4:bottom*4, left*4:right*4]         
+            face_image = cv2.resize(face_image, (150, 150))
+            face_image_large = frame[top*4:bottom*4, left*4:right*4]
 
             # If we found the face, label the face with some useful information.
             if metadata is not None:
@@ -202,7 +202,7 @@ def main_loop():
                 timestamp = str(datetime.now().strftime('%Y_%m_%d_%H_%M_%S'))
                 cv2.imwrite(data_path + timestamp + '_small.jpg', face_image)
                 cv2.imwrite(data_path + timestamp + '_face.jpg', face_image_large)
-                cv2.imwrite(data_path + timestamp + '_frame.jpg', frame)            
+                cv2.imwrite(data_path + timestamp + '_frame.jpg', frame)
 
         # Draw a box around each face and label each face
         for (top, right, bottom, left), face_label in zip(face_locations, face_labels):
@@ -213,9 +213,9 @@ def main_loop():
             left *= 4
 
             # Border color BGR values
-            blue=0
-            red=0
-            green=255
+            #blue=0
+            #red=255
+            #green=0
 
             # Draw a box around the face
             cv2.rectangle(frame, (left, top), (right, bottom), (blue, green, red), 2)
@@ -268,3 +268,4 @@ def main_loop():
 if __name__ == "__main__":
     load_known_faces()
     main_loop()
+
