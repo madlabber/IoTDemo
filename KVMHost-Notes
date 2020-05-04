@@ -28,6 +28,10 @@ yum install -y epel-release
 wget https://cbs.centos.org/kojifiles/packages/openvswitch/2.12.0/1.el7/x86_64/openvswitch-2.12.0-1.el7.x86_64.rpm
 yum install -y openvswitch-2.12.0-1.el7.x86_64.rpm
 
+# Start/Enable libvirt
+systemctl start libvirtd
+systemctl enable libvirtd
+
 #Configure Networking
 ## start/enable openvswitch
 systemctl start openvswitch
@@ -35,6 +39,7 @@ systemctl enable openvswitch
 
 #Configure Storage Pool
 # Note: verify correct deivce, sda, sdb, etc.
+# dir version: virsh pool-define-as select_pool dir --target /select_pool
 virsh pool-define-as select_pool logical --source-dev /dev/sda --target=/dev/select_pool
 virsh pool-build select_pool
 virsh pool-start select_pool
