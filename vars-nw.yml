@@ -1,0 +1,10 @@
+site_address: 192.168.223.210
+site_cluster: ontap-select-cluster
+site_dns_domain: nuc.lab
+site_dns_server: 192.168.223.21
+site_gateway: 192.168.223.1
+site_ic1_address: 192.168.223.212
+site_name: NodeWeaver
+site_netmask: 255.255.255.0
+site_password: netapp123
+site_svm_address: 192.168.223.213
