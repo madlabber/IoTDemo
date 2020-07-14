@@ -1,0 +1,69 @@
+---
+- hosts: all
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+  gather_facts: false
+  tasks:
+#
+## Backup so that the decomm playbook can revert
+#
+    - name: Backup Pi4 CMDLINE.TXT
+      shell: cp /boot/firmware/cmdline.txt /boot/firmware/cmdline.rancher
+#
+## Required for Kubernetes to run on Pi4
+## Failure to do so will result in strange cache warning messages
+#
+    - name: Configure CMDLINE.TXT
+      shell: sed -i '$ s/$/ cgroup_enable=cpuset cgroup_enable=memory cgroup_memory=1 swapaccount=1/' /boot/firmware/cmdline.txt
+      args:
+        warn: no
+#
+## Checks that reboot is completed before continuing playbook run
+#
+    - name: Reboot Pi4 and wait for restart
+      reboot:
+        msg: "Reboot initiated by Ansible"
+        connect_timeout: 5
+        reboot_timeout: 600
+        pre_reboot_delay: 0
+        post_reboot_delay: 30
+        test_command: whoami
+#
+## Log that the correct changes were made
+#
+    - name:  Check CMDLINE.TXT
+      shell: cat /boot/firmware/cmdline.txt | tee -a /tmp/output.log
+#
+## Easier to use curl, otherwise a private registry would have to be built
+## Refer to AirGap install procedure from rancher
+#
+    - name: Install K3S via CURL
+      shell: curl -sfL https://get.k3s.io | sh - | tee -a /tmp/output.log
+      args:
+        warn: no
+#
+## Verify Kubernetes nodes
+#
+    - name: Print Header
+      shell: echo kubectl get nodes -o wide >> /tmp/output.log
+    - name: Get Kubernetes Nodes
+      shell: kubectl get nodes -o wide | tee -a /tmp/output.log
+#
+## Verify Kubernetes Pods
+#
+    - name: Print Header
+      shell: echo kubectl get pods --all-namespaces >> /tmp/output.log
+    - name: Get Kubernetes Pods
+      shell: kubectl get pods --all-namespaces |  tee -a /tmp/output.log
+#
+## Save log to running AWX host
+#
+    - name: Copy log file to awx
+      shell: scp /tmp/output.log root@192.168.10.52:/awx_tower/projects/Kubernetes/logs/
+#
+## Purge job log from host
+#
+    - name: Remove log file from Pi4
+      file:
+        state: absent
+        path: /tmp/output.log

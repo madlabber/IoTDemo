@@ -1,0 +1,44 @@
+---
+- hosts: all
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+  gather_facts: false
+  tasks:
+#
+## Use backup from build playbook to revert
+#
+    - name: Revert Pi4 CMDLINE.TXT
+      shell: mv /boot/firmware/cmdline.rancher /boot/firmware/cmdline.txt
+#
+## Logging confirmation that boot parameters reverted
+#
+    - name:  check cmdline.TXT
+      shell: cat /boot/firmware/cmdline.txt | tee -a /tmp/output.log
+#
+## No need to stop running K3S containers, just uninstall and reboot
+#
+    - name: uninstall K3S
+      shell: /usr/local/bin/k3s-uninstall.sh >> /tmp/output.log
+#
+## Transfer logs back to AWX for storage
+#
+    - name: Copy log file to awx
+      shell: scp /tmp/output.log root@192.168.10.52:/awx_tower/projects/Kubernetes/logs/
+#
+## Purge logs from local host
+#
+    - name: Remove log file from host
+      file:
+        state: absent
+        path: /tmp/output.log
+#
+## Reboot to purge running K3S containers
+#
+    - name: Reboot Pi4 and wait for restart
+      reboot:
+        msg: "Reboot initiated by Ansible"
+        connect_timeout: 5
+        reboot_timeout: 600
+        pre_reboot_delay: 0
+        post_reboot_delay: 30
+        test_command: whoami
