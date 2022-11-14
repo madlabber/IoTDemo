@@ -19,13 +19,10 @@ su
 
 # Install Dependancies
 yum install -y qemu-kvm libvirt virt-install lshw lsscsi lsof 
-
-yum search epel-release
-yum info epel-release
 yum install -y epel-release
 
 # If openvswitch is missing from the repos again, you can build it from source or grab the rpm:
-wget https://cbs.centos.org/kojifiles/packages/openvswitch/2.12.0/1.el7/x86_64/openvswitch-2.12.0-1.el7.x86_64.rpm
+wget https://cbs.centos.org/kojifiles/packages/openvswitch/2.12.0/1.el7/x86_64/openvswitch-2.12.0-1.el7.x86_64.rpm --no-check-certificate
 yum install -y openvswitch-2.12.0-1.el7.x86_64.rpm
 
 # Start/Enable libvirt
