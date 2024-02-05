@@ -9,3 +9,54 @@ core_netmask: "255.255.255.0"
 core_gateway: "192.168.223.1"
 core_dns_server: "192.168.223.21"
 core_dns_domain: "nuc.lab"
+
+#Core Layout
+# ONTAP-CORE::> vol show
+# Vserver   Volume       Aggregate    State      Type       Size  Available Used%
+# --------- ------------ ------------ ---------- ---- ---------- ---------- -----
+# ONTAP-CORE-01 
+#           vol0         aggr0_ONTAP_CORE_01 
+#                                     online     RW      56.98GB    29.78GB   44%
+# svm1Core  Distribution ONTAP_CORE_01_SSD_1 
+#                                     online     RW      105.3GB    99.81GB    0%
+# svm1Core  ISO          ONTAP_CORE_01_SSD_1 
+#                                     online     RW         20GB    10.18GB   46%
+# svm1Core  Sites_cache  ONTAP_CORE_01_SSD_1 
+#                                     online     RW      105.3GB   100.00GB    0%
+# svm1Core  Sites_copy   ONTAP_CORE_01_SSD_1 
+#                                     online     RW      105.3GB   100.00GB    0%
+# svm1Core  svm1Core_root 
+#                        ONTAP_CORE_01_SSD_1 
+#                                     online     RW        100GB    95.00GB    0%
+# 6 entries were displayed.
+
+# ONTAP-CORE::> aggr show
+                                                                      
+
+# Aggregate     Size Available Used% State   #Vols  Nodes            RAID Status
+# --------- -------- --------- ----- ------- ------ ---------------- ------------
+# ONTAP_CORE_01_SSD_1 
+#            177.2GB   166.5GB    6% online       5 ONTAP-CORE-01    raid0,
+#                                                                    normal
+# aggr0_ONTAP_CORE_01 
+#            60.22GB    2.92GB   95% online       1 ONTAP-CORE-01    raid0,
+#                                                                    normal
+# 2 entries were displayed.
+
+# ONTAP-CORE::> net int show
+#   (network interface show)
+#             Logical    Status     Network            Current       Current Is
+# Vserver     Interface  Admin/Oper Address/Mask       Node          Port    Home
+# ----------- ---------- ---------- ------------------ ------------- ------- ----
+# ONTAP-CORE
+#             Default_intercluster_lif_178 
+#                          up/up    192.168.223.12/24  ONTAP-CORE-01 e0c     true
+#             ONTAP-CORE-01_mgmt1 
+#                          up/up    192.168.223.11/24  ONTAP-CORE-01 e0a     true
+#             cluster_mgmt up/up    192.168.223.10/24  ONTAP-CORE-01 e0a     true
+# svm1Core
+#             svm1Core_data_nas_lif_190 
+#                          up/up    192.168.223.13/24  ONTAP-CORE-01 e0b     true
+# 4 entries were displayed.
+
+

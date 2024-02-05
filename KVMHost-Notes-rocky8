@@ -1,0 +1,68 @@
+# Build Plan:
+Install Server with GUI
+
+Create user admin
+Configure static ipv4 address on en01
+Set hostname
+complete the OS install
+
+# switch to root
+su
+
+# Install Dependancies
+yum install -y qemu-kvm libvirt virt-install lshw lsscsi lsof 
+yum install -y epel-release
+
+# Install RDO repo for ovs components
+sudo dnf install -y https://repos.fedorapeople.org/repos/openstack/openstack-yoga/rdo-release-yoga-1.el8.noarch.rpm
+
+#install openvswitch etc
+yum install -y openvswitch libibverbs NetworkManager-ovs
+
+#symlink python to accomodate deploy's host discover scripts
+sudo ln -fs /usr/bin/python3 /usr/bin/python
+
+# downgrade qemu to avoid a breaking change in 6.0+
+dnf downgrade qemu-kvm-5.2.0-11.el8s --allowerasing
+
+#Configure qemu to run as root
+#Edit /etc/libvirt/qemu.conf
+#Uncomment #user = "root"
+#Uncomment #group = "root"
+sed '/ = "root"/s/^#//' -i /etc/libvirt/qemu.conf
+
+# Start/Enable libvirt
+systemctl start libvirtd
+systemctl enable libvirtd
+
+#Configure Networking
+## start/enable openvswitch
+systemctl start openvswitch
+systemctl enable openvswitch
+
+#Configure Storage Pool
+# Note: verify correct deivce, sda, sdb, etc.
+# dir version: virsh pool-define-as select_pool dir --target /select_pool
+virsh pool-define-as select_pool logical --source-dev /dev/sdb --target=/dev/select_pool
+virsh pool-build select_pool --overwrite
+virsh pool-start select_pool
+virsh pool-autostart select_pool
+virsh pool-list
+
+## set queue length rules
+echo 'SUBSYSTEM=="net", ACTION=="add", KERNEL=="ontapn*", ATTR{tx_queue_len}="5000"' > /etc/udev/rules.d/99-ontaptxqueuelen.rules
+cat /etc/udev/rules.d/99-ontaptxqueuelen.rules
+
+# create ovs bridge
+nmcli conn delete ens224
+nmcli conn add type ovs-bridge conn.interface br0 con-name br0 autoconnect yes ipv6.addr-gen-mode 0
+nmcli conn add type ovs-port conn.interface br0 master br0 autoconnect yes
+nmcli conn add type ovs-interface slave-type ovs-port conn.interface br0 master br0 ipv4.method manual ipv4.address 192.168.0.31/24 ipv4.gateway 192.168.0.1 ipv4.dns 192.168.0.11 autoconnect yes ipv6.addr-gen-mode 0
+nmcli conn add type ovs-port conn.interface ens224 master br0 autoconnect yes
+nmcli conn add type ethernet conn.interface ens224 master ens224 autoconnect yes
+service NetworkManager restart
+
+ovs-vsctl add-br ontap-br
+ovs-vsctl add-bond ontap-br bond-ontap ens33 ens34 #bond_mode=balance-slb lacp=active other_config:lacp-time=fast
+
+
